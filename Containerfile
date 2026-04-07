@@ -40,9 +40,14 @@ RUN useradd -m -d /home/opencode -s /bin/bash opencode
 RUN python3 -m venv /opt/venv && chown -R opencode:opencode /opt/venv
 
 USER opencode
-WORKDIR /home/opencode
 
-ENV PATH="/opt/venv/bin:/home/opencode/.opencode/bin:$PATH"
+RUN mkdir -p /home/opencode/workspace && \
+    git -C /home/opencode/workspace init
+
+WORKDIR /home/opencode/workspace
+
+ENV PATH="/opt/venv/bin:/home/opencode/.opencode/bin:$PATH" \
+    HOME="/home/opencode"
 
 RUN curl -fsSL https://opencode.ai/install | bash
 
