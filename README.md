@@ -2,6 +2,12 @@
 
 Deploy [OpenCode](https://opencode.ai) as a web application on Red Hat OpenShift, secured with OpenShift OAuth Proxy and backed by a [vLLM](https://docs.vllm.ai/) inference server running on the same cluster.
 
+## Demo
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4f213613-45c9-43d7-b0d7-b800a89816fa" alt="OpenCode on OpenShift demo" width="800">
+</p>
+
 ## Architecture
 
 ```
