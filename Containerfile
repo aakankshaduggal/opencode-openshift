@@ -49,6 +49,7 @@ WORKDIR /home/opencode/workspace
 ENV PATH="/opt/venv/bin:/home/opencode/.opencode/bin:$PATH" \
     HOME="/home/opencode"
 
-RUN curl -fsSL https://opencode.ai/install | bash
+RUN curl -fsSL https://opencode.ai/install | bash && \
+    chmod -R g=u /home/opencode/.opencode
 
 ENTRYPOINT [ "opencode" ]
