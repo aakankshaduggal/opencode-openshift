@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "vLLM",
+      "options": {
+        "baseURL": "${BASE_URL}",
+        "apiKey": "${API_KEY}"
+      },
+      "models": {
+        "${MODEL_NAME}": {
+          "name": "${MODEL_NAME}"
+        }
+      }
+    }
+  },
+  "model": "${MODEL_NAME}",
+  "small_model": "${MODEL_NAME}",
+  "enabled_providers": ["vllm"]
+}
