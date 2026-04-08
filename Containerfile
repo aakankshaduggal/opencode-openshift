@@ -33,15 +33,19 @@ RUN microdnf install -y \
     procps-ng \
     python3 \
     python3-pip \
+    vim-minimal \
     && microdnf clean all
 
-RUN useradd -m -d /home/opencode -s /bin/bash opencode
+RUN useradd -m -d /home/opencode -s /bin/bash -G 0 opencode && \
+    chgrp 0 /home/opencode && \
+    chmod g=u /home/opencode
 
 RUN python3 -m venv /opt/venv && chown -R opencode:opencode /opt/venv
 
 USER opencode
 
 RUN mkdir -p /home/opencode/workspace && \
+    git config --global --add safe.directory '*' && \
     git -C /home/opencode/workspace init
 
 WORKDIR /home/opencode/workspace
