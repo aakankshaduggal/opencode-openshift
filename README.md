@@ -72,14 +72,12 @@ Deploy [OpenCode](https://opencode.ai) as a web application on Red Hat OpenShift
 
 - OpenShift 4.x cluster with cluster-admin access (or sufficient RBAC to create namespaces, service accounts, routes, and secrets)
 - `oc` CLI installed and authenticated (`oc login`)
-- `podman` or `docker` for building the container image (if building from source)
 - A **vLLM inference server** already running on the cluster (e.g. deployed via [KServe](https://kserve.github.io/), [Red Hat OpenShift AI](https://www.redhat.com/en/technologies/cloud-computing/openshift/openshift-ai), or a standalone Deployment on GPU nodes) with a reachable cluster-internal Service URL
 
 ## Project Structure
 
 ```
 .
-├── Containerfile                  # Container build (UBI 10 minimal)
 ├── LICENSE                        # Apache License 2.0
 ├── README.md                      # This file
 └── manifests/
@@ -115,29 +113,18 @@ oc -n opencode get route opencode-web -o jsonpath='https://{.spec.host}{"\n"}'
 
 Open the printed URL in your browser. You will be redirected to the OpenShift login page, and after authentication you will land in the OpenCode web UI.
 
-## Building the Container Image
+## Container Image
 
-The provided `Containerfile` builds on **UBI 10 minimal** and installs OpenCode along with common development tools.
-
-```bash
-# Build
-podman build -t quay.io/<your-org>/opencode:latest .
-
-# Push
-podman push quay.io/<your-org>/opencode:latest
-```
+The pre-built image is published at `quay.io/aicatalyst/opencode:latest`. It is based on **UBI 9 minimal** and contains OpenCode v1.4.4 built from [source](https://github.com/opendatahub-io/opencode).
 
 ### What the Image Contains
 
 | Layer | Purpose |
 |-------|---------|
-| UBI 10 minimal base | RHEL-compatible minimal image |
-| git, curl, tar, jq, make, etc. | Common CLI tools for development workflows |
-| Python 3 + venv (`/opt/venv`) | Python environment for tool/script execution |
-| OpenCode binary | Installed via `https://opencode.ai/install` |
-| `/home/opencode/workspace` | Pre-initialized git repo for workspace |
-
-If you use the pre-built image (`quay.io/aicatalyst/opencode:latest`), you can skip this step.
+| UBI 9 minimal base | RHEL-compatible minimal image |
+| OpenCode v1.4.4 | Built from source ([opendatahub-io/opencode](https://github.com/opendatahub-io/opencode)) |
+| ca-certificates, git, diffutils, findutils, gzip, jq, make, openssh-clients, patch, procps-ng, tar, vim-minimal, which | Common CLI tools for development workflows |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | Python environment and fast package manager |
 
 ## Configuration
 
@@ -194,15 +181,6 @@ spec:
     requests:
       storage: 10Gi
   storageClassName: <your-storage-class>   # e.g. gp3-csi, ocs-storagecluster-cephfs
-```
-
-### Custom Image
-
-If you built and pushed your own image, update `manifests/deployment.yaml`:
-
-```yaml
-- name: opencode-web
-  image: quay.io/<your-org>/opencode:latest
 ```
 
 ### Config Template
