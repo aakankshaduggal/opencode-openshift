@@ -79,7 +79,7 @@ spec:
               memory: 2Gi
           volumeMounts:
             - name: opencode-web-pvc
-              mountPath: /home/opencode/workspace
+              mountPath: /opt/app-root/workspace
             - name: config-template
               mountPath: /config-template
       volumes:
