@@ -171,16 +171,17 @@ Replace the `session_secret` value in `kustomization.yaml`:
 
 ### Storage
 
-The default PVC requests **10Gi** with `standard-csi` storage class. Adjust in `manifests/pvc.yaml` if your cluster uses a different storage class:
+The default PVC requests **10Gi**. The storage class is configured via a Kustomize patch in `manifests/kustomization.yaml`. Update the `patches` section to match your cluster's storage class:
 
 ```yaml
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: <your-storage-class>   # e.g. gp3-csi, ocs-storagecluster-cephfs
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: opencode-web-pvc
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: <your-storage-class>   # e.g. gp3-csi, ocs-storagecluster-cephfs
 ```
 
 ### Config Template
@@ -277,7 +278,7 @@ oc -n opencode describe pod -l app=opencode
 ```
 
 Common causes:
-- **PVC not bound** -- check that the `standard-csi` storage class exists: `oc get storageclass`
+- **PVC not bound** -- check that the configured storage class exists: `oc get storageclass`
 - **Image pull error** -- verify the image reference and ensure the cluster can pull from `quay.io/aicatalyst/opencode`
 
 ### OAuth Proxy returns 403

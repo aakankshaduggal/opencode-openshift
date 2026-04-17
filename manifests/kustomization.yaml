@@ -22,6 +22,15 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
 
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: opencode-web-pvc
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: <your-storage-class>
+
 secretGenerator:
   - name: opencode-web-secret
     literals:
