@@ -43,9 +43,19 @@ spec:
               memory: 128Mi
         - name: opencode-web
           image: quay.io/aicatalyst/opencode:latest
+          workingDir: /opt/app-root/
           command: ["/bin/bash", "-c"]
           args:
             - |
+              git config --global init.defaultBranch main
+              git config --global user.email "opencode@openshift.local"
+              git config --global user.name "OpenCode"
+              git config --global --add safe.directory /opt/app-root/workspace
+              cd /opt/app-root/workspace
+              if [ ! -d .git ]; then
+                git init
+                git commit --allow-empty -m "init"
+              fi
               CONFIG=$(cat /config-template/config-template.json)
               CONFIG=${CONFIG//\$\{BASE_URL\}/$BASE_URL}
               CONFIG=${CONFIG//\$\{API_KEY\}/$API_KEY}
