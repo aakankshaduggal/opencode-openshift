@@ -21,6 +21,11 @@ configMapGenerator:
       - config-template.json
     options:
       disableNameSuffixHash: true
+  - name: opencode-web-entrypoint
+    files:
+      - entrypoint.sh
+    options:
+      disableNameSuffixHash: true
 
 patches:
   - target:
