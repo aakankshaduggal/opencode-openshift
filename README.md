@@ -116,7 +116,7 @@ Open the printed URL in your browser. You will be redirected to the OpenShift lo
 
 ## Container Image
 
-The pre-built image is published at `quay.io/aicatalyst/opencode:v1.4.4`. It is based on **UBI 9 minimal** and contains OpenCode v1.4.4 built from [source](https://github.com/opendatahub-io/opencode).
+The pre-built image is published at `quay.io/opendatahub/odh-opencode-rhel9:latest`. It is based on **UBI 9 minimal** and contains OpenCode v1.4.4 built from [source](https://github.com/opendatahub-io/opencode).
 
 ### What the Image Contains
 
@@ -314,7 +314,7 @@ oc -n opencode describe pod -l app=opencode
 
 Common causes:
 - **PVC not bound** -- check that the configured storage class exists: `oc get storageclass`
-- **Image pull error** -- verify the image reference and ensure the cluster can pull from `quay.io/aicatalyst/opencode`
+- **Image pull error** -- verify the image reference and ensure the cluster can pull from `quay.io/opendatahub/odh-opencode-rhel9`
 
 ### OAuth Proxy returns 403
 

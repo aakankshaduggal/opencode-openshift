@@ -49,7 +49,7 @@ spec:
             capabilities:
               drop: [ALL]
         - name: opencode-web
-          image: quay.io/aicatalyst/opencode:v1.4.4
+          image: quay.io/opendatahub/odh-opencode-rhel9:latest
           workingDir: /opt/app-root/
           command: ["/bin/bash", "/entrypoint/entrypoint.sh"]
           ports:
