@@ -199,11 +199,18 @@ MCP servers can be injected at deploy time by creating a ConfigMap named `openco
 
 ```bash
 # Create a JSON file with your MCP server definitions
+# Format follows OpenCode's mcp config schema: https://opencode.ai/docs/mcp-servers/
 cat > mcp-servers.json <<EOF
 {
-  "my-mcp-server": {
-    "command": "npx",
-    "args": ["-y", "@my-org/my-mcp-server"]
+  "my-local-server": {
+    "type": "local",
+    "command": ["npx", "-y", "@my-org/my-mcp-server"],
+    "enabled": true
+  },
+  "my-remote-server": {
+    "type": "remote",
+    "url": "https://mcp.example.com/sse",
+    "enabled": true
   }
 }
 EOF
@@ -212,7 +219,9 @@ EOF
 oc -n opencode create configmap opencode-web-mcp --from-file=mcp-servers.json
 ```
 
-The entrypoint script merges MCP server definitions into the OpenCode config at startup. If no `opencode-web-mcp` ConfigMap exists, OpenCode starts without MCP servers (the volume mount is optional).
+The entrypoint script merges MCP server definitions into the OpenCode config's `mcp` field at startup. If no `opencode-web-mcp` ConfigMap exists, OpenCode starts without MCP servers (the volume mount is optional).
+
+> **Note**: Command-based MCP servers (type `local`) require the executable to exist in the container image. The base image includes `git`, `bash`, `python3`, and `jq`. For servers requiring `npx` or other runtimes, you'll need to extend the image.
 
 ## Deployment
 

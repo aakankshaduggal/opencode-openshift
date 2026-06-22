@@ -30,5 +30,5 @@
   },
   "model": "${MODEL_NAME}",
   "small_model": "${MODEL_NAME}",
-  "enabled_providers": ["vllm"]
+  "enabled_providers": ["vllm", "ogx"]
 }

@@ -23,7 +23,7 @@ CONFIG=${CONFIG//\$\{MODEL_NAME\}/$MODEL_NAME}
 # Merge MCP config if mounted
 if [ -f /mcp-config/mcp-servers.json ]; then
   MCP_SERVERS=$(cat /mcp-config/mcp-servers.json)
-  CONFIG=$(echo "$CONFIG" | jq --argjson mcp "$MCP_SERVERS" '. + {mcpServers: $mcp}')
+  CONFIG=$(echo "$CONFIG" | jq --argjson mcp "$MCP_SERVERS" '. + {mcp: $mcp}')
 fi
 
 export OPENCODE_CONFIG_CONTENT="$CONFIG"
