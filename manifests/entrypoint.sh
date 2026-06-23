@@ -63,6 +63,40 @@ setup_opencode_dirs() {
     echo "[entrypoint] OpenCode data directory: ${OPENCODE_DATA_DIR}"
 }
 
+# =============================================================================
+# Skills Configuration
+# =============================================================================
+# Skills are staged at /etc/opencode-skills/ (read-only ConfigMap mount)
+# and symlinked into the config directory so OpenCode discovers them.
+# =============================================================================
+setup_skills() {
+    local staged_skills="/etc/opencode-skills"
+    local skills_dir="${XDG_CONFIG_HOME}/opencode/skills"
+
+    if [[ -d "${staged_skills}" ]]; then
+        mkdir -p "$(dirname "${skills_dir}")"
+
+        if [[ -e "${skills_dir}" && ! -L "${skills_dir}" ]]; then
+            local backup_dir="${skills_dir}.bak"
+            local i=1
+            while [[ -e "${backup_dir}" ]]; do
+                backup_dir="${skills_dir}.bak.${i}"
+                ((i++))
+            done
+            mv "${skills_dir}" "${backup_dir}"
+            echo "[entrypoint] Moved existing skills directory to ${backup_dir}"
+        fi
+
+        ln -sfn "${staged_skills}" "${skills_dir}"
+
+        local skill_count
+        skill_count=$(find "${skills_dir}" -name "SKILL.md" -type f 2>/dev/null | wc -l)
+        if [[ ${skill_count} -gt 0 ]]; then
+            echo "[entrypoint] Found ${skill_count} skill(s) in ${skills_dir}"
+        fi
+    fi
+}
+
 # Git configuration
 git config --global init.defaultBranch main
 git config --global user.email "opencode@openshift.local"
@@ -71,6 +105,7 @@ git config --global --add safe.directory /opt/app-root/workspace
 
 # Setup persistent directories BEFORE config generation
 setup_opencode_dirs
+setup_skills
 
 # Initialize workspace if needed
 cd /opt/app-root/workspace

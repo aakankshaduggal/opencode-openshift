@@ -267,6 +267,59 @@ env:
 
 The entrypoint creates `config/opencode/` and `data/opencode/` subdirectories within this path.
 
+### Skills Injection
+
+Skills extend OpenCode with custom instructions. No skills are included by default — you create and inject your own.
+
+Skills are auto-discovered from `~/.config/opencode/skills/`. The skills ConfigMap is mounted at `/etc/opencode-skills/` and the entrypoint symlinks it into the config directory. Each skill must be in a subdirectory containing a `SKILL.md` file with YAML frontmatter.
+
+#### Example: Creating a Code Review Skill
+
+**1. Create a `SKILL.md` file:**
+
+```markdown
+---
+name: code-review
+description: Analyze code for correctness, security, and performance issues
+---
+
+# Code Review
+
+When reviewing code, analyze for:
+
+1. **Correctness** - Logic errors, edge cases, off-by-one errors
+2. **Security** - Input validation, injection risks, hardcoded secrets
+3. **Performance** - Unnecessary loops, N+1 queries, missing indexes
+```
+
+**2. Create a ConfigMap from your skill files:**
+
+```bash
+oc create configmap opencode-web-skills \
+  --from-file=code-review-skill=./skills/code-review/SKILL.md
+```
+
+**3. Add an `items` mapping to the skills volume in your deployment manifest:**
+
+The `items` mapping creates the subdirectory structure OpenCode expects:
+
+```yaml
+volumes:
+  - name: skills
+    configMap:
+      name: opencode-web-skills
+      optional: true
+      items:
+        - key: code-review-skill
+          path: code-review/SKILL.md
+```
+
+**4. Restart the deployment:**
+
+```bash
+oc rollout restart deployment/opencode-web
+```
+
 ## Deployment
 
 ### Step 1: Log in to OpenShift
