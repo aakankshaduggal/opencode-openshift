@@ -1,17 +1,87 @@
 #!/bin/bash
 set -euo pipefail
 
+# =============================================================================
+# OpenCode Data Directory Setup (session persistence)
+# =============================================================================
+# OpenCode stores config in ~/.config/opencode and session data in
+# ~/.local/share/opencode. This function redirects both to a PVC-backed
+# location so sessions persist across pod restarts.
+# =============================================================================
+setup_opencode_dirs() {
+    # Default to workspace-relative path for persistence across pod restarts
+    export OPENCODE_DATA_DIR="${OPENCODE_DATA_DIR:-/opt/app-root/workspace/.opencode}"
+
+    # Create persistent directories on PVC
+    mkdir -p "${OPENCODE_DATA_DIR}/config/opencode"
+    mkdir -p "${OPENCODE_DATA_DIR}/data/opencode"
+
+    # Set XDG paths to use persistent storage
+    export XDG_CONFIG_HOME="${OPENCODE_DATA_DIR}/config"
+    export XDG_DATA_HOME="${OPENCODE_DATA_DIR}/data"
+
+    # Create symlinks from default locations to persistent storage
+    local home_config="${HOME}/.config"
+    local home_data="${HOME}/.local/share"
+
+    # Symlink ~/.config/opencode -> persistent config
+    mkdir -p "${home_config}"
+    if [[ -L "${home_config}/opencode" ]]; then
+        local current_target
+        current_target=$(readlink "${home_config}/opencode")
+        if [[ "${current_target}" != "${XDG_CONFIG_HOME}/opencode" ]]; then
+            ln -sfn "${XDG_CONFIG_HOME}/opencode" "${home_config}/opencode"
+        fi
+    else
+        if [[ -d "${home_config}/opencode" ]]; then
+            if [[ -n "$(ls -A "${home_config}/opencode" 2>/dev/null)" ]]; then
+                cp -rn "${home_config}/opencode/"* "${XDG_CONFIG_HOME}/opencode/" 2>/dev/null || true
+            fi
+            rm -rf "${home_config}/opencode"
+        fi
+        ln -sfn "${XDG_CONFIG_HOME}/opencode" "${home_config}/opencode"
+    fi
+
+    # Symlink ~/.local/share/opencode -> persistent data
+    mkdir -p "${home_data}"
+    if [[ -L "${home_data}/opencode" ]]; then
+        local current_target
+        current_target=$(readlink "${home_data}/opencode")
+        if [[ "${current_target}" != "${XDG_DATA_HOME}/opencode" ]]; then
+            ln -sfn "${XDG_DATA_HOME}/opencode" "${home_data}/opencode"
+        fi
+    else
+        if [[ -d "${home_data}/opencode" ]]; then
+            if [[ -n "$(ls -A "${home_data}/opencode" 2>/dev/null)" ]]; then
+                cp -rn "${home_data}/opencode/"* "${XDG_DATA_HOME}/opencode/" 2>/dev/null || true
+            fi
+            rm -rf "${home_data}/opencode"
+        fi
+        ln -sfn "${XDG_DATA_HOME}/opencode" "${home_data}/opencode"
+    fi
+
+    echo "[entrypoint] OpenCode data directory: ${OPENCODE_DATA_DIR}"
+}
+
 # Git configuration
 git config --global init.defaultBranch main
 git config --global user.email "opencode@openshift.local"
 git config --global user.name "OpenCode"
 git config --global --add safe.directory /opt/app-root/workspace
 
+# Setup persistent directories BEFORE config generation
+setup_opencode_dirs
+
 # Initialize workspace if needed
 cd /opt/app-root/workspace
 if [ ! -d .git ]; then
   git init
   git commit --allow-empty -m "init"
+fi
+
+# Exclude OpenCode internal data from git tracking
+if ! grep -q "^\.opencode$" .gitignore 2>/dev/null; then
+    echo ".opencode" >> .gitignore
 fi
 
 # Build OpenCode config from template
@@ -26,16 +96,20 @@ if [ -f /mcp-config/mcp-servers.json ]; then
   CONFIG=$(echo "$CONFIG" | jq --argjson mcp "$MCP_SERVERS" '. + {mcp: $mcp}')
 fi
 
-export OPENCODE_CONFIG_CONTENT="$CONFIG"
-
 MODE="${OPENCODE_MODE:-web}"
 
 case "$MODE" in
   web)
+    export OPENCODE_CONFIG_CONTENT="$CONFIG"
     exec opencode web --hostname 0.0.0.0 --port 8003
     ;;
   cli)
-    echo "[entrypoint] CLI mode — attach with: oc exec -it deployment/opencode-cli -c opencode -- opencode"
+    # Write config to persistent location for oc exec sessions
+    echo "$CONFIG" > "${XDG_CONFIG_HOME}/opencode/opencode.json"
+    echo "[entrypoint] CLI mode — config written to ${XDG_CONFIG_HOME}/opencode/opencode.json"
+    echo "[entrypoint] Sessions persist in ${XDG_DATA_HOME}/opencode/"
+    echo "[entrypoint] Attach with: oc exec -it deployment/opencode-cli -c opencode -- opencode"
+    echo "[entrypoint] Resume last session: opencode --continue"
     exec sleep infinity
     ;;
   *)

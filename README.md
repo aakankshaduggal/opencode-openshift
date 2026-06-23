@@ -230,6 +230,43 @@ The entrypoint script merges MCP server definitions into the OpenCode config's `
 
 > **Note**: Command-based MCP servers (type `local`) require the executable to exist in the container image. The base image includes `git`, `bash`, `python3`, and `jq`. For servers requiring `npx` or other runtimes, you'll need to extend the image.
 
+### Session Persistence
+
+OpenCode session history persists across pod restarts. The entrypoint automatically redirects OpenCode's data directory to persistent storage on the PVC.
+
+#### How It Works
+
+| Default Path               | Redirected To                                       | Purpose                   |
+|----------------------------|-----------------------------------------------------|---------------------------|
+| `~/.local/share/opencode/` | `/opt/app-root/workspace/.opencode/data/opencode/`  | Session history, database |
+
+The entrypoint creates a symlink from the default location to the PVC-backed path, so sessions survive pod restarts without any user configuration.
+
+#### Resuming Sessions (CLI Mode)
+
+```bash
+# List previous sessions
+oc exec deployment/opencode-cli -- opencode session list
+
+# Resume the most recent session
+oc exec -it deployment/opencode-cli -- opencode --continue
+
+# Resume a specific session
+oc exec -it deployment/opencode-cli -- opencode --session <session-id>
+```
+
+#### Customizing the Data Directory
+
+Override the default location by setting the `OPENCODE_DATA_DIR` environment variable in the deployment:
+
+```yaml
+env:
+  - name: OPENCODE_DATA_DIR
+    value: /opt/app-root/workspace/my-custom-dir
+```
+
+The entrypoint creates `config/opencode/` and `data/opencode/` subdirectories within this path.
+
 ## Deployment
 
 ### Step 1: Log in to OpenShift
