@@ -84,11 +84,12 @@ Deploy [OpenCode](https://opencode.ai) as a web application on Red Hat OpenShift
     ├── kustomization.yaml         # Kustomize root: resources, ConfigMaps, Secrets
     ├── namespace.yaml             # Namespace: opencode
     ├── serviceaccount.yaml        # ServiceAccount with OAuth redirect annotation
+    ├── entrypoint.sh              # Container entrypoint (config substitution, MCP merge, git init)
     ├── deployment.yaml            # Deployment: oauth-proxy + opencode-web containers
     ├── service.yaml               # ClusterIP Service (ports 8443, 8003)
     ├── route.yaml                 # Route with reencrypt TLS termination
     ├── pvc.yaml                   # 10Gi RWO PersistentVolumeClaim
-    └── config-template.json       # OpenCode config template (provider + model)
+    └── config-template.json       # OpenCode config template (providers + model)
 ```
 
 ## Quick Start
@@ -115,7 +116,7 @@ Open the printed URL in your browser. You will be redirected to the OpenShift lo
 
 ## Container Image
 
-The pre-built image is published at `quay.io/aicatalyst/opencode:latest`. It is based on **UBI 9 minimal** and contains OpenCode v1.4.4 built from [source](https://github.com/opendatahub-io/opencode).
+The pre-built image is published at `quay.io/opendatahub/odh-opencode-rhel9:latest`. It is based on **UBI 9 minimal** and contains OpenCode v1.4.4 built from [source](https://github.com/opendatahub-io/opencode).
 
 ### What the Image Contains
 
@@ -190,6 +191,38 @@ The `manifests/config-template.json` defines the OpenCode provider configuration
 
 To add additional providers or change settings, edit this file following the [OpenCode configuration schema](https://opencode.ai/config.json).
 
+The template includes both `vllm` and `ogx` providers. By default only `vllm` is enabled. To use OGX (formerly Llama Stack), change `enabled_providers` to `["ogx"]` and set `BASE_URL` to your OGX endpoint (port 8321).
+
+### MCP Server Configuration
+
+MCP servers can be injected at deploy time by creating a ConfigMap named `opencode-web-mcp`:
+
+```bash
+# Create a JSON file with your MCP server definitions
+# Format follows OpenCode's mcp config schema: https://opencode.ai/docs/mcp-servers/
+cat > mcp-servers.json <<EOF
+{
+  "my-local-server": {
+    "type": "local",
+    "command": ["npx", "-y", "@my-org/my-mcp-server"],
+    "enabled": true
+  },
+  "my-remote-server": {
+    "type": "remote",
+    "url": "https://mcp.example.com/sse",
+    "enabled": true
+  }
+}
+EOF
+
+# Create the ConfigMap
+oc -n opencode create configmap opencode-web-mcp --from-file=mcp-servers.json
+```
+
+The entrypoint script merges MCP server definitions into the OpenCode config's `mcp` field at startup. If no `opencode-web-mcp` ConfigMap exists, OpenCode starts without MCP servers (the volume mount is optional).
+
+> **Note**: Command-based MCP servers (type `local`) require the executable to exist in the container image. The base image includes `git`, `bash`, `python3`, and `jq`. For servers requiring `npx` or other runtimes, you'll need to extend the image.
+
 ## Deployment
 
 ### Step 1: Log in to OpenShift
@@ -251,6 +284,17 @@ Open the route URL in your browser. You will be prompted to log in with your Ope
 
 ## Security Considerations
 
+### OpenShift SCC Compliance
+
+The deployment is configured for the **restricted-v2** Security Context Constraint:
+
+- `runAsNonRoot: true` — containers never run as root
+- `allowPrivilegeEscalation: false` — no privilege escalation
+- `seccompProfile: RuntimeDefault` — default seccomp profile
+- `capabilities: drop: [ALL]` — no Linux capabilities
+
+No special SCC grants are required.
+
 ### Secrets Management
 
 The `kustomization.yaml` file contains plaintext secret values for convenience. **For production deployments**, replace the inline secrets with a proper secrets management solution:
@@ -279,7 +323,7 @@ oc -n opencode describe pod -l app=opencode
 
 Common causes:
 - **PVC not bound** -- check that the configured storage class exists: `oc get storageclass`
-- **Image pull error** -- verify the image reference and ensure the cluster can pull from `quay.io/aicatalyst/opencode`
+- **Image pull error** -- verify the image reference and ensure the cluster can pull from `quay.io/opendatahub/odh-opencode-rhel9`
 
 ### OAuth Proxy returns 403
 

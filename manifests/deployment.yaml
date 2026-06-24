@@ -41,27 +41,17 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: [ALL]
         - name: opencode-web
-          image: quay.io/aicatalyst/opencode:latest
+          image: quay.io/opendatahub/odh-opencode-rhel9:latest
           workingDir: /opt/app-root/
-          command: ["/bin/bash", "-c"]
-          args:
-            - |
-              git config --global init.defaultBranch main
-              git config --global user.email "opencode@openshift.local"
-              git config --global user.name "OpenCode"
-              git config --global --add safe.directory /opt/app-root/workspace
-              cd /opt/app-root/workspace
-              if [ ! -d .git ]; then
-                git init
-                git commit --allow-empty -m "init"
-              fi
-              CONFIG=$(cat /config-template/config-template.json)
-              CONFIG=${CONFIG//\$\{BASE_URL\}/$BASE_URL}
-              CONFIG=${CONFIG//\$\{API_KEY\}/$API_KEY}
-              CONFIG=${CONFIG//\$\{MODEL_NAME\}/$MODEL_NAME}
-              export OPENCODE_CONFIG_CONTENT="$CONFIG"
-              exec opencode web --hostname 0.0.0.0 --port 8003
+          command: ["/bin/bash", "/entrypoint/entrypoint.sh"]
           ports:
             - containerPort: 8003
           env:
@@ -87,11 +77,34 @@ spec:
             limits:
               cpu: "2"
               memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: [ALL]
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: opencode-web-pvc
               mountPath: /opt/app-root/workspace
             - name: config-template
               mountPath: /config-template
+            - name: entrypoint
+              mountPath: /entrypoint
+            - name: mcp-config
+              mountPath: /mcp-config
       volumes:
         - name: opencode-web-pvc
           persistentVolumeClaim:
@@ -99,6 +112,14 @@ spec:
         - name: config-template
           configMap:
             name: opencode-web-config
+        - name: entrypoint
+          configMap:
+            name: opencode-web-entrypoint
+            defaultMode: 0755
+        - name: mcp-config
+          configMap:
+            name: opencode-web-mcp
+            optional: true
         - name: proxy-tls
           secret:
             secretName: opencode-web-tls
