@@ -238,9 +238,13 @@ OpenCode session history persists across pod restarts. The entrypoint automatica
 
 | Default Path               | Redirected To                                       | Purpose                   |
 |----------------------------|-----------------------------------------------------|---------------------------|
+| `~/.config/opencode/`      | `/opt/app-root/workspace/.opencode/config/opencode/`| Configuration, settings   |
 | `~/.local/share/opencode/` | `/opt/app-root/workspace/.opencode/data/opencode/`  | Session history, database |
+| `~/.local/state/opencode/` | `/opt/app-root/workspace/.opencode/state/opencode/` | Locks, runtime state      |
 
-The entrypoint creates a symlink from the default location to the PVC-backed path, so sessions survive pod restarts without any user configuration.
+The entrypoint creates symlinks from default XDG locations to PVC-backed paths. For config and data, this works automatically. For state, the deployment sets `XDG_STATE_HOME` explicitly (see note below).
+
+> **Note**: The container image creates `~/.local/state/` with 755 permissions, which prevents symlink creation under OpenShift's random UID (the root group cannot write to 755 directories). The deployment manifests set `XDG_STATE_HOME` as a workaround. If this is fixed upstream in the container image (by using 775 permissions), the environment variable can be removed.
 
 #### Resuming Sessions (CLI Mode)
 

@@ -15,14 +15,17 @@ setup_opencode_dirs() {
     # Create persistent directories on PVC
     mkdir -p "${OPENCODE_DATA_DIR}/config/opencode"
     mkdir -p "${OPENCODE_DATA_DIR}/data/opencode"
+    mkdir -p "${OPENCODE_DATA_DIR}/state/opencode"
 
     # Set XDG paths to use persistent storage
     export XDG_CONFIG_HOME="${OPENCODE_DATA_DIR}/config"
     export XDG_DATA_HOME="${OPENCODE_DATA_DIR}/data"
+    export XDG_STATE_HOME="${OPENCODE_DATA_DIR}/state"
 
     # Create symlinks from default locations to persistent storage
     local home_config="${HOME}/.config"
     local home_data="${HOME}/.local/share"
+    local home_state="${HOME}/.local/state"
 
     # Symlink ~/.config/opencode -> persistent config
     mkdir -p "${home_config}"
@@ -37,9 +40,9 @@ setup_opencode_dirs() {
             if [[ -n "$(ls -A "${home_config}/opencode" 2>/dev/null)" ]]; then
                 cp -rn "${home_config}/opencode/"* "${XDG_CONFIG_HOME}/opencode/" 2>/dev/null || true
             fi
-            rm -rf "${home_config}/opencode"
+            mv "${home_config}/opencode" "${home_config}/opencode.migrated" 2>/dev/null || rm -rf "${home_config}/opencode" 2>/dev/null || true
         fi
-        ln -sfn "${XDG_CONFIG_HOME}/opencode" "${home_config}/opencode"
+        ln -sfn "${XDG_CONFIG_HOME}/opencode" "${home_config}/opencode" 2>/dev/null || true
     fi
 
     # Symlink ~/.local/share/opencode -> persistent data
@@ -55,9 +58,28 @@ setup_opencode_dirs() {
             if [[ -n "$(ls -A "${home_data}/opencode" 2>/dev/null)" ]]; then
                 cp -rn "${home_data}/opencode/"* "${XDG_DATA_HOME}/opencode/" 2>/dev/null || true
             fi
-            rm -rf "${home_data}/opencode"
+            mv "${home_data}/opencode" "${home_data}/opencode.migrated" 2>/dev/null || rm -rf "${home_data}/opencode" 2>/dev/null || true
         fi
-        ln -sfn "${XDG_DATA_HOME}/opencode" "${home_data}/opencode"
+        ln -sfn "${XDG_DATA_HOME}/opencode" "${home_data}/opencode" 2>/dev/null || true
+    fi
+
+    # Symlink ~/.local/state/opencode -> persistent state
+    mkdir -p "${home_state}"
+    if [[ -L "${home_state}/opencode" ]]; then
+        local current_target
+        current_target=$(readlink "${home_state}/opencode")
+        if [[ "${current_target}" != "${XDG_STATE_HOME}/opencode" ]]; then
+            ln -sfn "${XDG_STATE_HOME}/opencode" "${home_state}/opencode"
+        fi
+    else
+        if [[ -d "${home_state}/opencode" ]]; then
+            if [[ -n "$(ls -A "${home_state}/opencode" 2>/dev/null)" ]]; then
+                cp -rn "${home_state}/opencode/"* "${XDG_STATE_HOME}/opencode/" 2>/dev/null || true
+            fi
+            # Use mv instead of rm - more likely to succeed with different UIDs
+            mv "${home_state}/opencode" "${home_state}/opencode.migrated" 2>/dev/null || rm -rf "${home_state}/opencode" 2>/dev/null || true
+        fi
+        ln -sfn "${XDG_STATE_HOME}/opencode" "${home_state}/opencode" 2>/dev/null || true
     fi
 
     echo "[entrypoint] OpenCode data directory: ${OPENCODE_DATA_DIR}"
