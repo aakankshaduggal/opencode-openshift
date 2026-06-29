@@ -80,19 +80,26 @@ Deploy [OpenCode](https://opencode.ai) as a web application on Red Hat OpenShift
 .
 ├── LICENSE                        # Apache License 2.0
 ├── README.md                      # This file
-└── manifests/
-    ├── kustomization.yaml         # Kustomize root: resources, ConfigMaps, Secrets
-    ├── namespace.yaml             # Namespace: opencode
-    ├── serviceaccount.yaml        # ServiceAccount with OAuth redirect annotation
-    ├── entrypoint.sh              # Container entrypoint (config substitution, MCP merge, git init)
-    ├── deployment.yaml            # Deployment: oauth-proxy + opencode-web containers
-    ├── service.yaml               # ClusterIP Service (ports 8443, 8003)
-    ├── route.yaml                 # Route with reencrypt TLS termination
-    ├── pvc.yaml                   # 10Gi RWO PersistentVolumeClaim
-    └── config-template.json       # OpenCode config template (providers + model)
+├── manifests/                     # Base resources (web mode with OAuth proxy)
+│   ├── kustomization.yaml
+│   ├── namespace.yaml
+│   ├── serviceaccount.yaml
+│   ├── entrypoint.sh              # Container entrypoint (config substitution, MCP merge, git init)
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── route.yaml
+│   ├── pvc.yaml
+│   └── config-template.json
+└── overlays/
+    ├── cli/                       # CLI mode — no OAuth proxy, attach via oc exec
+    │   ├── kustomization.yaml
+    │   ├── deployment-patch.yaml
+    │   └── remove-route.yaml
+    └── example/                   # Template for user customization (namespace, model, storage)
+        └── kustomization.yaml
 ```
 
-## Quick Start
+## Quick Start (Web Mode)
 
 ```bash
 # 1. Clone the repository

@@ -28,4 +28,18 @@ fi
 
 export OPENCODE_CONFIG_CONTENT="$CONFIG"
 
-exec opencode web --hostname 0.0.0.0 --port 8003
+MODE="${OPENCODE_MODE:-web}"
+
+case "$MODE" in
+  web)
+    exec opencode web --hostname 0.0.0.0 --port 8003
+    ;;
+  cli)
+    echo "[entrypoint] CLI mode — attach with: oc exec -it deployment/opencode-cli -c opencode -- opencode"
+    exec sleep infinity
+    ;;
+  *)
+    echo "[entrypoint] Unknown mode: $MODE (expected 'web' or 'cli')"
+    exit 1
+    ;;
+esac
