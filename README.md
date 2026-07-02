@@ -230,6 +230,100 @@ The entrypoint script merges MCP server definitions into the OpenCode config's `
 
 > **Note**: Command-based MCP servers (type `local`) require the executable to exist in the container image. The base image includes `git`, `bash`, `python3`, and `jq`. For servers requiring `npx` or other runtimes, you'll need to extend the image.
 
+### Session Persistence
+
+OpenCode session history persists across pod restarts. The entrypoint automatically redirects OpenCode's data directory to persistent storage on the PVC.
+
+#### How It Works
+
+| Default Path               | Redirected To                                       | Purpose                   |
+|----------------------------|-----------------------------------------------------|---------------------------|
+| `~/.config/opencode/`      | `/opt/app-root/workspace/.opencode/config/opencode/`| Configuration, settings   |
+| `~/.local/share/opencode/` | `/opt/app-root/workspace/.opencode/data/opencode/`  | Session history, database |
+| `~/.local/state/opencode/` | `/opt/app-root/workspace/.opencode/state/opencode/` | Locks, runtime state      |
+
+The entrypoint creates symlinks from default XDG locations to PVC-backed paths. For config and data, this works automatically. For state, the deployment sets `XDG_STATE_HOME` explicitly (see note below).
+
+> **Note**: The container image creates `~/.local/state/` with 755 permissions, which prevents symlink creation under OpenShift's random UID (the root group cannot write to 755 directories). The deployment manifests set `XDG_STATE_HOME` as a workaround. If this is fixed upstream in the container image (by using 775 permissions), the environment variable can be removed.
+
+#### Resuming Sessions (CLI Mode)
+
+```bash
+# List previous sessions
+oc exec deployment/opencode-cli -- opencode session list
+
+# Resume the most recent session
+oc exec -it deployment/opencode-cli -- opencode --continue
+
+# Resume a specific session
+oc exec -it deployment/opencode-cli -- opencode --session <session-id>
+```
+
+#### Customizing the Data Directory
+
+Override the default location by setting the `OPENCODE_DATA_DIR` environment variable in the deployment:
+
+```yaml
+env:
+  - name: OPENCODE_DATA_DIR
+    value: /opt/app-root/workspace/my-custom-dir
+```
+
+The entrypoint creates `config/opencode/` and `data/opencode/` subdirectories within this path.
+
+### Skills Injection
+
+Skills extend OpenCode with custom instructions. No skills are included by default — you create and inject your own.
+
+Skills are auto-discovered from `~/.config/opencode/skills/`. The skills ConfigMap is mounted at `/etc/opencode-skills/` and the entrypoint symlinks it into the config directory. Each skill must be in a subdirectory containing a `SKILL.md` file with YAML frontmatter.
+
+#### Example: Creating a Code Review Skill
+
+**1. Create a `SKILL.md` file:**
+
+```markdown
+---
+name: code-review
+description: Analyze code for correctness, security, and performance issues
+---
+
+# Code Review
+
+When reviewing code, analyze for:
+
+1. **Correctness** - Logic errors, edge cases, off-by-one errors
+2. **Security** - Input validation, injection risks, hardcoded secrets
+3. **Performance** - Unnecessary loops, N+1 queries, missing indexes
+```
+
+**2. Create a ConfigMap from your skill files:**
+
+```bash
+oc create configmap opencode-web-skills \
+  --from-file=code-review-skill=./skills/code-review/SKILL.md
+```
+
+**3. Add an `items` mapping to the skills volume in your deployment manifest:**
+
+The `items` mapping creates the subdirectory structure OpenCode expects:
+
+```yaml
+volumes:
+  - name: skills
+    configMap:
+      name: opencode-web-skills
+      optional: true
+      items:
+        - key: code-review-skill
+          path: code-review/SKILL.md
+```
+
+**4. Restart the deployment:**
+
+```bash
+oc rollout restart deployment/opencode-web
+```
+
 ## Deployment
 
 ### Step 1: Log in to OpenShift
